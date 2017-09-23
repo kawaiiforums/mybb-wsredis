@@ -1,6 +1,6 @@
-function wsredisClient(initParameters)
+function wsredisClient(initParameters, tunnelingPort)
 {
-    this.broadcastChannelName = initParameters.broadcastChannelName;
+    this.apiBroadcastChannelName = initParameters.apiBroadcastChannelName;
     this.uri = initParameters.uri;
     this.userToken = initParameters.userToken;
     this.userTokenTimestamp = initParameters.userTokenTimestamp;
@@ -10,11 +10,11 @@ function wsredisClient(initParameters)
     this.tokenTimeout = null;
     this.channels = [];
     this.connectionPromise = null;
+    this.apiBroadcastChannel = null;
+    this.tunnelingPort = null;
 
-    // BroadcastChannel API
-    this.broadcastChannel = new BroadcastChannel(this.broadcastChannelName);
-
-    this.broadcastChannel.onmessage = (event) => {
+    // API request handling
+    this.processApiMessage = (event) => {
         switch (event.data.action) {
             case 'addChannels':
                 this.addChannels(event.data.name);
@@ -28,87 +28,62 @@ function wsredisClient(initParameters)
             case 'removeChannel':
                 this.removeChannel(event.data.name);
                 break;
-            /*
-            case 'send':
-                this.send(event.data.data);
-                break;
-            */
         }
     };
 
-    // WebSocket connection
-    this.connect = () => {
-        if (!this.connectionPromise) {
-            this.connectionPromise = new Promise((resolve, reject) => {
-                if (this.isOpen()) {
-                    resolve();
-                } else {
-                    this.prepareUserToken().then(() => {
-                        this.handle = new WebSocket(this.uri, [ this.userToken ]);
-
-                        this.handle.addEventListener('open', (event) => {
-                            this.announceState('connection_open');
-                            this.log('wsredisWorker: connection opened');
-                            resolve();
-                        });
-
-                        this.handle.addEventListener('close', (event) => {
-                            this.announceState('connection_closed');
-                            this.log('wsredisWorker: connection closed');
-                        });
-
-                        this.handle.addEventListener('message', (event) => {
-                            var message = JSON.parse(event.data);
-
-                            if (message.channel !== undefined && message.data !== undefined && message.channel in this.channels) {
-                                this.channels[message.channel].postMessage(message.data);
-                            }
-                        });
-                    });
-
-                    this.tokenTimeout = setTimeout(() => { this.refreshToken() }, this.tokenExpirationTime * 0.8);
-                }
-            });
+    this.broadcastApiMessage = (data) => {
+        if (this.apiBroadcastChannel) {
+            return this.apiBroadcastChannel.postMessage(data);
+        } else if (this.tunnelingPort) {
+            return this.tunnelingPort.postMessage(data);
+        } else {
+            return false;
         }
-
-        return this.connectionPromise;
     };
 
-    this.disconnect = () => {
-        if (this.isOpen()) {
-            this.handle.close();
+    this.broadcastChannelMessage = (channel, data) => {
+        if (this.broadcastChannel) {
+            if (this.channels[channel] === null) {
+                this.channels[channel] = new BroadcastChannel(this.apiBroadcastChannelName + '.' + channels[i]);
+            }
+
+            return this.channels[channel].postMessage(data);
+        } else if (this.tunnelingPort) {
+            return this.tunnelingPort.postMessage({
+                action: 'channel-tunneled',
+                channel: channel,
+                data: data,
+            })
+        } else {
+            return false;
         }
-
-        this.tokenTimeout = null;
-    };
-
-    this.isOpen = () => {
-        return this.handle != null && this.handle.readyState === WebSocket.OPEN;
     };
 
     this.announceState = (name) => {
-        this.broadcastChannel.postMessage({
+        this.broadcastApiMessage({
             action: 'state',
             name: name,
         });
     };
 
-    // WebSocket communication
-    this.send = (action, data) => {
-        this.connect().then(() => {
-            var object = { action: action, data: data };
-            this.handle.send(JSON.stringify(object));
-        });
+    this.setLatestTunnelingPort = (tunnelingPort) => {
+        this.tunnelingPort = tunnelingPort;
     };
 
-    // subscription handling
+    this.notifyNewWindow = () => {
+        if (this.isOpen()) {
+            this.announceState('connection_open');
+        }
+    }
+
+    // API functionality
     this.addChannels = (channels) => {
         var newChannels = [];
 
         for (var i in channels) {
             if (this.channels[channels[i]] == undefined) {
                 newChannels.push(channels[i]);
-                this.channels[channels[i]] = new BroadcastChannel(this.broadcastChannelName + '.' + channels[i]);
+                this.channels[channels[i]] = null;
             }
         }
 
@@ -142,6 +117,65 @@ function wsredisClient(initParameters)
         return this.removeChannels([name]);
     };
 
+    // WebSocket handling
+    this.connect = () => {
+        if (!this.connectionPromise) {
+            this.connectionPromise = new Promise((resolve, reject) => {
+                if (this.isOpen()) {
+                    resolve();
+                } else {
+                    this.prepareUserToken().then(() => {
+                        this.handle = new WebSocket(this.uri, [ this.userToken ]);
+
+                        this.handle.addEventListener('open', (event) => {
+                            this.announceState('connection_open');
+                            this.log('wsredisClient: connection opened');
+                            resolve();
+                        });
+
+                        this.handle.addEventListener('close', (event) => {
+                            this.announceState('connection_closed');
+                            this.log('wsredisClient: connection closed');
+                        });
+
+                        this.handle.addEventListener('message', (event) => {
+                            var message = JSON.parse(event.data);
+
+                            if (message.channel !== undefined && message.data !== undefined && message.channel in this.channels) {
+                                this.broadcastApiMessage(message.channel, message.data);
+                            }
+                        });
+                    });
+
+                    this.tokenTimeout = setTimeout(() => {
+                        this.refreshToken()
+                    }, this.tokenExpirationTime * 0.8);
+                }
+            });
+        }
+
+        return this.connectionPromise;
+    };
+
+    this.disconnect = () => {
+        if (this.isOpen()) {
+            this.handle.close();
+        }
+
+        this.tokenTimeout = null;
+    };
+
+    this.isOpen = () => {
+        return this.handle != null && this.handle.readyState === WebSocket.OPEN;
+    };
+
+    this.send = (action, data) => {
+        this.connect().then(() => {
+            var object = { action: action, data: data };
+            this.handle.send(JSON.stringify(object));
+        });
+    };
+
     // token handling
     this.fetchUserToken = () => {
         return new Promise((resolve, reject) => {
@@ -172,7 +206,10 @@ function wsredisClient(initParameters)
         });
 
         clearTimeout(this.tokenTimeout);
-        this.tokenTimeout = setTimeout(() => { this.refreshToken() }, this.tokenExpirationTime * 0.8);
+
+        this.tokenTimeout = setTimeout(() => {
+            this.refreshToken()
+        }, this.tokenExpirationTime * 0.8);
     };
 
     this.sendToken = () => {
@@ -181,32 +218,59 @@ function wsredisClient(initParameters)
         });
     };
 
-    // MessageChannel communication
+    // common
     this.log = (message) => {
         console.log(message);
     };
+
+    // set up listening for API requests
+    if (typeof BroadcastChannel != 'undefined') {
+        this.apiBroadcastChannel = new BroadcastChannel(this.apiBroadcastChannelName);
+        this.apiBroadcastChannel.addEventListener('message', this.processApiMessage);
+    } else {
+        if (tunnelingPort) {
+            this.tunnelingPort = tunnelingPort;
+        }
+
+        this.announceState('broadcast_channel_tunneling');
+    }
+
+    this.announceState('client_initialized');
 }
 
 var client = null;
 
 var messageHandler = (event) => {
     if (event.data.action == 'wsredisClient.init') {
-        if (!client) {
-            client = new wsredisClient(event.data.initParameters);
-            client.announceState('client_initialized');
+        if (event.ports != null) {
+            var tunnelingPort = event.ports[0];
+        } else {
+            var tunnelingPort = null;
         }
 
-        if (client.isOpen()) {
-            client.announceState('connection_open');
+        if (!client) {
+            client = new wsredisClient(event.data.initParameters, tunnelingPort);
+        } else {
+            client.setLatestTunnelingPort(tunnelingPort);
+        }
+
+        client.notifyNewWindow();
+    } else {
+        if (client) {
+            client.processApiMessage(event);
         }
     }
 };
 
-if (typeof SharedWorkerGlobalScope != 'undefined') {
-    self.addEventListener('connect', (event) => {
-        event.ports[0].addEventListener('message', messageHandler);
-        event.ports[0].start();
-    });
-} else {
+if (typeof window != 'undefined') {
     self.addEventListener('message', messageHandler);
+} else {
+    if (typeof SharedWorkerGlobalScope != 'undefined') {
+        self.addEventListener('connect', (event) => {
+            event.ports[0].addEventListener('message', messageHandler);
+            event.ports[0].start();
+        });
+    } else {
+        self.addEventListener('message', messageHandler);
+    }
 }

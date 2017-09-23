@@ -1,4 +1,4 @@
-function wsredisClientManager(broadcastChannelName)
+function wsredisClientManager(apiBroadcastChannelName)
 {
     this.useWorker = true;
 
@@ -8,10 +8,10 @@ function wsredisClientManager(broadcastChannelName)
     this.clientInitializeCallbacks = [];
     this.connected = false;
     this.connectCallbacks = [];
+    this.broadcastChannels = [];
+    this.apiBroadcastChannelName = apiBroadcastChannelName;
 
-    this.apiBroadcastChannel = new BroadcastChannel(broadcastChannelName);
-
-    this.apiBroadcastChannel.onmessage = (event) => {
+    this.processApiMessage = (event) => {
         if (event.data.action == 'state') {
             switch (event.data.name) {
                 case 'client_initialized':
@@ -58,8 +58,8 @@ function wsredisClientManager(broadcastChannelName)
                             });
                     } else {
                         this.setupVirtualWorker()
-                            .then(this.initializeWorker).
-                            then(resolve);
+                            .then(this.initializeWorker)
+                            .then(resolve);
                     }
                 });
             });
@@ -117,7 +117,7 @@ function wsredisClientManager(broadcastChannelName)
             messageHandler({
                 action: 'wsredisClient.init',
                 initParameters: {
-                    broadcastChannelName: broadcastChannelName,
+                    apiBroadcastChannelName: apiBroadcastChannelName,
                     uri: this.attributes['wsredisWebsocketUri'.toLowerCase()],
                     userToken: this.attributes['wsredisEncodedUserToken'.toLowerCase()],
                     userTokenTimestamp: this.attributes['wsredisUserTokenTimestamp'.toLowerCase()],
@@ -136,14 +136,15 @@ function wsredisClientManager(broadcastChannelName)
             if (typeof SharedWorker != 'undefined') {
                 var worker = new SharedWorker(rootpath + '/wsredisWorker.js');
 
-                worker.onerror = (error) => {
-                    console.log(error.message);
-                    worker.port.close();
-                }
+                worker.addEventListener('error', (error) => {
+                    console.log(error);
+                });
+
+                worker.port.addEventListener('message', this.tunneledMessageHandler);
 
                 worker.port.start();
 
-                console.log('wsredis: sharedWorker & control active');
+                console.log('wsredisClientManager: sharedWorker active');
 
                 resolve((message) => {
                     return worker.port.postMessage(message);
@@ -163,10 +164,18 @@ function wsredisClientManager(broadcastChannelName)
                     if (navigator.serviceWorker.controller == null) {
                         reject();
                     } else {
-                        console.log('wsredis: serviceWorker & control active');
+                        navigator.serviceWorker.addEventListener('error', (error) => {
+                            console.log(error);
+                        });
+
+                        console.log('wsredisClientManager: serviceWorker & control active');
+
+                        var messageChannel = new MessageChannel();
+
+                        messageChannel.port1.addEventListener('message', this.tunneledMessageHandler);
 
                         resolve((message) => {
-                            return navigator.serviceWorker.controller.postMessage(message);
+                            return navigator.serviceWorker.controller.postMessage(message, [messageChannel.port2]);
                         });
                     }
                 });
@@ -179,7 +188,9 @@ function wsredisClientManager(broadcastChannelName)
     this.setupVirtualWorker = () => {
         return new Promise((resolve, reject) => {
             $.getScript(rootpath + '/wsredisWorker.js').then(() => {
-                console.log('wsredis: virtual worker active');
+                console.log('wsredisClientManager: virtual worker active');
+
+                window.addEventListener('message', this.tunneledMessageHandler);
 
                 resolve((message) => {
                     return window.postMessage(message, location.origin);
@@ -187,6 +198,22 @@ function wsredisClientManager(broadcastChannelName)
             });
         });
     };
+
+    this.tunneledMessageHandler = (event) => {
+        if (event.data.action == 'channel-tunneled') {
+            if (this.broadcastChannels[event.data.channel] == 'undefined') {
+                this.broadcastChannels[event.data.channel] = new BroadcastChannel('wsredis.' + event.data.channel);
+            }
+
+            this.broadcastChannels[event.data.channel].postMessage(event.data.data);
+        } else {
+            this.processApiMessage(event);
+        }
+    }
+
+    // set up main API channel
+    this.apiBroadcastChannel = new BroadcastChannel(this.apiBroadcastChannelName);
+    this.apiBroadcastChannel.addEventListener('message', this.processApiMessage);
 }
 
 var wsredis = new wsredisClientManager('wsredis');
