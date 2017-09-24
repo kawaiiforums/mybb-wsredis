@@ -134,6 +134,7 @@ function wsredisClient(initParameters, tunnelingPort)
                         });
 
                         this.handle.addEventListener('close', (event) => {
+                            this.connectionPromise = null;
                             this.announceState('connection_closed');
                             this.log('wsredisClient: connection closed');
                         });
