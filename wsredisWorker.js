@@ -42,9 +42,9 @@ function wsredisClient(initParameters, tunnelingPort)
     };
 
     this.broadcastChannelMessage = (channel, data) => {
-        if (this.broadcastChannel) {
+        if (this.apiBroadcastChannel) {
             if (this.channels[channel] === null) {
-                this.channels[channel] = new BroadcastChannel(this.apiBroadcastChannelName + '.' + channels[i]);
+                this.channels[channel] = new BroadcastChannel(this.apiBroadcastChannelName + '.' + channel);
             }
 
             return this.channels[channel].postMessage(data);
@@ -142,7 +142,7 @@ function wsredisClient(initParameters, tunnelingPort)
                             var message = JSON.parse(event.data);
 
                             if (message.channel !== undefined && message.data !== undefined && message.channel in this.channels) {
-                                this.broadcastApiMessage(message.channel, message.data);
+                                this.broadcastChannelMessage(message.channel, message.data);
                             }
                         });
                     });
