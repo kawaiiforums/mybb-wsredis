@@ -5,17 +5,21 @@ namespace wsredis\Redis;
 function pub(string $channel, string $message)
 {
     if (class_exists('Redis')) {
-        $redisHandle = new \Redis();
+        try {
+            $redisHandle = new \Redis();
 
-        $redisHandle->pconnect(
-            \wsredis\getRedisServerHostname(),
-            \wsredis\getRedisServerPort()
-        );
+            $redisHandle->pconnect(
+                \wsredis\getRedisServerHostname(),
+                \wsredis\getRedisServerPort()
+            );
 
-        $result = $redisHandle->publish($channel, $message);
+            $result = $redisHandle->publish($channel, $message);
 
-        $redisHandle->close();
+            $redisHandle->close();
 
-        return $result;
+            return $result;
+        } catch (\RedisException $e) {
+            return false;
+        }
     }
 }
