@@ -180,7 +180,9 @@ function wsredisClient(initParameters, tunnelingPort)
     // token handling
     this.fetchUserToken = () => {
         return new Promise((resolve, reject) => {
-            fetch('./xmlhttp.php?action=wsredis_get_user_token').then((response) => {
+            fetch('./xmlhttp.php?action=wsredis_get_user_token', {
+                credentials: 'same-origin',
+            }).then((response) => {
                 return response.json();
             }).then((response) => {
                 this.userToken = response.userToken;
