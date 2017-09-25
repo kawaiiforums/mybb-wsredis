@@ -17,8 +17,8 @@ function global_end()
     $wsredisAttributes = $attributesString;
 
     $wsredisScript = null;
-    $wsredisScript .= '<script src="' . $mybb->asset_url . '/jscripts/broadcastchannel_polyfill.js" async defer></script>' . PHP_EOL;
-    $wsredisScript .= '<script src="' . $mybb->asset_url . '/jscripts/wsredis.js" async defer' . $attributesString . '></script>';
+    $wsredisScript .= '<script src="' . $mybb->asset_url . '/jscripts/broadcastchannel_polyfill.js" defer></script>' . PHP_EOL;
+    $wsredisScript .= '<script src="' . $mybb->asset_url . '/jscripts/wsredis.js" defer' . $attributesString . '></script>';
 }
 
 function xmlhttp()
