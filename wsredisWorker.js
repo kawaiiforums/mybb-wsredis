@@ -98,6 +98,12 @@ function wsredisClient(initParameters, tunnelingPort)
         return this.addChannels([name]);
     };
 
+    this.readdChannels = () => {
+        this.send('add-channels', {
+            channels: Object.keys(this.channels),
+        });
+    };
+
     this.removeChannels = (channels) => {
         var existentChannels = [];
 
@@ -222,6 +228,14 @@ function wsredisClient(initParameters, tunnelingPort)
     };
 
     // common
+    this.restore = () => {
+        if (Object.keys(this.channels).length != 0 && !this.connectionPromise) {
+            this.connect().then(() => {
+                this.readdChannels();
+            });
+        }
+    };
+
     this.log = (message) => {
         console.log(message);
     };
@@ -255,6 +269,7 @@ var messageHandler = (event) => {
             client = new wsredisClient(event.data.initParameters, tunnelingPort);
         } else {
             client.setLatestTunnelingPort(tunnelingPort);
+            client.restore();
         }
 
         client.notifyNewWindow();
