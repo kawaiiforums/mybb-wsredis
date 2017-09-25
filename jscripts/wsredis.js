@@ -40,6 +40,9 @@ if (typeof wsredisClientManager === 'undefined') {
                     case 'connection_closed':
                         this.connected = false;
                         break;
+                    default:
+                        console.log('wsredisClientManager: unknown state announcement "' + event.data.name + '"');
+                        break;
                 }
             }
         };
