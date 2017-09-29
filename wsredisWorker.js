@@ -1,11 +1,5 @@
 function wsredisClient(initParameters, tunnelingPort)
 {
-    this.apiBroadcastChannelName = initParameters.apiBroadcastChannelName;
-    this.uri = initParameters.uri;
-    this.userToken = initParameters.userToken;
-    this.userTokenTimestamp = initParameters.userTokenTimestamp;
-    this.tokenExpirationTime = initParameters.tokenExpirationTime * 1000;
-
     this.handle = null;
     this.tokenTimeout = null;
     this.channels = [];
@@ -176,6 +170,10 @@ function wsredisClient(initParameters, tunnelingPort)
         return this.handle != null && this.handle.readyState === WebSocket.OPEN;
     };
 
+    this.isClosed = () => {
+        return this.handle == null || this.handle.readyState === WebSocket.CLOSED;
+    };
+
     this.send = (action, data) => {
         this.connect().then(() => {
             var object = { action: action, data: data };
@@ -228,7 +226,20 @@ function wsredisClient(initParameters, tunnelingPort)
     };
 
     // common
-    this.restore = () => {
+    this.init = (initParameters) => {
+        if (this.isClosed()) {
+            this.apiBroadcastChannelName = initParameters.apiBroadcastChannelName;
+            this.uri = initParameters.uri;
+            this.userToken = initParameters.userToken;
+            this.userTokenTimestamp = initParameters.userTokenTimestamp;
+            this.tokenExpirationTime = initParameters.tokenExpirationTime * 1000;
+        }
+    };
+
+    this.restore = (initParameters, tunnelingPort) => {
+        this.init(initParameters);
+        this.setLatestTunnelingPort(tunnelingPort);
+
         if (Object.keys(this.channels).length != 0 && !this.connectionPromise) {
             this.connect().then(() => {
                 this.readdChannels();
@@ -239,6 +250,8 @@ function wsredisClient(initParameters, tunnelingPort)
     this.log = (message) => {
         console.log(message);
     };
+
+    this.init(initParameters);
 
     // set up listening for API requests
     if (typeof BroadcastChannel != 'undefined') {
@@ -268,8 +281,7 @@ var messageHandler = (event) => {
         if (!client) {
             client = new wsredisClient(event.data.initParameters, tunnelingPort);
         } else {
-            client.setLatestTunnelingPort(tunnelingPort);
-            client.restore();
+            client.restore(event.data.initParameters, tunnelingPort);
         }
 
         client.notifyNewWindow();
