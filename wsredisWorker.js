@@ -149,7 +149,7 @@ function wsredisClient(initParameters, tunnelingPort)
                     });
 
                     this.tokenTimeout = setTimeout(() => {
-                        this.refreshToken()
+                        this.refreshToken();
                     }, this.tokenExpirationTime * 0.8);
                 }
             });
@@ -163,7 +163,7 @@ function wsredisClient(initParameters, tunnelingPort)
             this.handle.close();
         }
 
-        this.tokenTimeout = null;
+        clearTimeout(this.tokenTimeout);
     };
 
     this.isOpen = () => {
