@@ -24,10 +24,11 @@ function admin_tools_system_health_begin()
                 xmlhttp_error($lang->invalid_post_code);
             }
 
-            $result = \wsredis\push('ping', ['ping'], []);
+            $numClients = \wsredis\push('ping', ['ping'], []);
 
             echo json_encode([
-                'result' => (int)$result,
+                'result' => $numClients !== false,
+                'clients' => $numClients === false ? null : $numClients,
             ]);
 
             exit;

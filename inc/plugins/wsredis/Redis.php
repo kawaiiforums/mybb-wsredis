@@ -8,16 +8,16 @@ function pub(string $channel, string $message)
         try {
             $redisHandle = new \Redis();
 
-            $redisHandle->pconnect(
+            @$redisHandle->pconnect(
                 \wsredis\getRedisServerHostname(),
                 \wsredis\getRedisServerPort()
             );
 
-            $result = $redisHandle->publish($channel, $message);
+            $numClients = $redisHandle->publish($channel, $message);
 
             $redisHandle->close();
 
-            return $result;
+            return $numClients;
         } catch (\RedisException $e) {
             return false;
         }

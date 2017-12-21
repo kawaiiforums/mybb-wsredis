@@ -31,8 +31,12 @@ function sendPingBroadcastRequest(graph)
     }).done(function (data) {
         graph.setRelationshipStatus('browser-mybb', 'up', lang.wsredis_health_check_status_up);
 
-        if (data.result === 1) {
+        if (data.result === true) {
             graph.setRelationshipStatus('mybb-redis', 'up', lang.wsredis_health_check_status_up);
+
+            if (data.clients == 0) {
+                graph.setRelationshipStatus('redis-websocket-server', 'down', lang.wsredis_health_check_status_down);
+            }
         } else {
             graph.setRelationshipStatus('mybb-redis', 'down', lang.wsredis_health_check_status_down);
         }
