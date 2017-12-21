@@ -52,6 +52,25 @@ function getEncodedUserToken(array $userData): string
     return $encodedUserToken;
 }
 
+function setGlobalInitHtml()
+{
+    global $mybb, $wsredisAttributes, $wsredisScript;
+
+    $parameters = \wsredis\getWebsocketClientParameters();
+
+    $attributesString = null;
+
+    foreach ($parameters as $name => $value) {
+        $attributesString .= ' data-' . $name . '="' . $value . '"';
+    }
+
+    $wsredisAttributes = $attributesString;
+
+    $wsredisScript = null;
+    $wsredisScript .= '<script src="' . $mybb->asset_url . '/jscripts/broadcastchannel_polyfill.js" defer></script>' . PHP_EOL;
+    $wsredisScript .= '<script src="' . $mybb->asset_url . '/jscripts/wsredis.js" defer' . $attributesString . '></script>';
+}
+
 // data
 function getRedisServerHostname(): string
 {

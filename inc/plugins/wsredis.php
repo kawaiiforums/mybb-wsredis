@@ -8,10 +8,12 @@ require_once MYBB_ROOT . 'inc/plugins/wsredis/core.php';
 require_once MYBB_ROOT . 'inc/plugins/wsredis/Redis.php';
 require_once MYBB_ROOT . 'inc/plugins/wsredis/Websocket.php';
 require_once MYBB_ROOT . 'inc/plugins/wsredis/hooks_frontend.php';
+require_once MYBB_ROOT . 'inc/plugins/wsredis/hooks_acp.php';
 
 // hooks
 $plugins->add_hook('global_end', 'wsredis\hooks\global_end');
 $plugins->add_hook('xmlhttp', 'wsredis\hooks\xmlhttp');
+$plugins->add_hook('admin_tools_system_health_begin', 'wsredis\hooks\admin_tools_system_health_begin');
 
 // init
 $wsredisTokenRequested = false;

@@ -1,0 +1,8 @@
+#wsredis_health_check { }
+
+#wsredis_health_check .object text { font-size: 1.8px; fill: #222; text-anchor: middle; }
+#wsredis_health_check .object .symbol { fill: #EEE; }
+#wsredis_health_check .relationship path { fill: transparent; stroke: #AAA; stroke-width: 0.5px; transition: 0.5s; }
+#wsredis_health_check .relationship.status-down path { stroke: #ee2244; }
+#wsredis_health_check .relationship.status-up path { stroke: #22cc77; }
+#wsredis_health_check .relationship text { font-size: 1.3px; fill: #AAA; text-anchor: middle; }
