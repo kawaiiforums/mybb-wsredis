@@ -184,7 +184,7 @@ function wsredisClient(initParameters, tunnelingPort)
     // token handling
     this.fetchUserToken = () => {
         return new Promise((resolve, reject) => {
-            fetch('./xmlhttp.php?action=wsredis_get_user_token', {
+            fetch(this.rootpath + '/xmlhttp.php?action=wsredis_get_user_token', {
                 credentials: 'same-origin',
             }).then((response) => {
                 return response.json();
@@ -230,6 +230,7 @@ function wsredisClient(initParameters, tunnelingPort)
         if (this.isClosed()) {
             this.apiBroadcastChannelName = initParameters.apiBroadcastChannelName;
             this.uri = initParameters.uri;
+            this.rootpath = initParameters.rootpath;
             this.userToken = initParameters.userToken;
             this.userTokenTimestamp = initParameters.userTokenTimestamp;
             this.tokenExpirationTime = initParameters.tokenExpirationTime * 1000;

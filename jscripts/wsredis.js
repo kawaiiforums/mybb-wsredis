@@ -123,6 +123,7 @@ if (typeof wsredisClientManager === 'undefined') {
                     initParameters: {
                         apiBroadcastChannelName: apiBroadcastChannelName,
                         uri: this.attributes['wsredisWebsocketUri'.toLowerCase()],
+                        rootpath: rootpath,
                         userToken: this.attributes['wsredisEncodedUserToken'.toLowerCase()],
                         userTokenTimestamp: this.attributes['wsredisUserTokenTimestamp'.toLowerCase()],
                         tokenExpirationTime: this.attributes['wsredisTokenExpirationTime'.toLowerCase()],
