@@ -21,5 +21,7 @@ function pub(string $channel, string $message)
         } catch (\RedisException $e) {
             return false;
         }
+    } else {
+        return false;
     }
 }
